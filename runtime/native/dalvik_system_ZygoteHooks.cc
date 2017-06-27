@@ -44,6 +44,10 @@
 #include "thread_list.h"
 #include "trace.h"
 
+#if defined(__linux__)
+#include <sys/prctl.h>
+#endif
+
 #include <sys/resource.h>
 
 namespace art {
@@ -410,6 +414,15 @@ static void ZygoteHooks_nativePostForkChild(JNIEnv* env,
   }
 }
 
+static void ZygoteHooks_nativePostExec(JNIEnv*,
+                                       jclass,
+                                       jint debug_flags) {
+  if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) == -1) {
+    PLOG(ERROR) << "prctl(PR_SET_DUMPABLE) failed for pid " << getpid();
+  }
+  EnableDebugFeatures(debug_flags);
+}
+
 static void ZygoteHooks_startZygoteNoThreadCreation(JNIEnv* env ATTRIBUTE_UNUSED,
                                                     jclass klass ATTRIBUTE_UNUSED) {
   Runtime::Current()->SetZygoteNoThreadSection(true);
@@ -425,6 +438,7 @@ static const JNINativeMethod gMethods[] = {
   NATIVE_METHOD(ZygoteHooks, nativePostZygoteFork, "()V"),
   NATIVE_METHOD(ZygoteHooks, nativePostForkSystemServer, "()V"),
   NATIVE_METHOD(ZygoteHooks, nativePostForkChild, "(JIZZLjava/lang/String;)V"),
+  NATIVE_METHOD(ZygoteHooks, nativePostExec, "(I)V"),
   NATIVE_METHOD(ZygoteHooks, startZygoteNoThreadCreation, "()V"),
   NATIVE_METHOD(ZygoteHooks, stopZygoteNoThreadCreation, "()V"),
 };
